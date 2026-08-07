@@ -1,0 +1,10 @@
+# Data files & exports
+chatWPP.*
+chunks_debug.json
+*.zip
+*.png
+
+# Python cache & environment
+__pycache__/
+*.py[cod]
+.venv/
