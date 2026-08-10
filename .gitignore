@@ -1,6 +1,7 @@
 # Data files & exports
 chatWPP.*
-chunks_debug.json
+chatsPrueba*
+*.json
 *.zip
 *.png
 
@@ -8,3 +9,6 @@ chunks_debug.json
 __pycache__/
 *.py[cod]
 .venv/
+
+# Secrets
+.env
