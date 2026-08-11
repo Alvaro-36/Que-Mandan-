@@ -43,9 +43,15 @@ UMBRAL_SIMILITUD_COSENO: float = 0.65       # HARDCODED - provisional
 VENTANA_CONTEXTO: int = 15                   # Last N messages of current block used as context
 MODELO_EMBEDDING: str = "paraphrase-multilingual-MiniLM-L12-v2"
 
+# Base temporal cut threshold (seconds) for conversation inactivity
+T_CORTE_BASE_SEG: float = 45 * 60    # 45 minutes base
+
 # T_corte clamping range (seconds)
 T_CORTE_MIN_SEG: float = 15 * 60    # 15 minutes
-T_CORTE_MAX_SEG: float = 12 * 3600  # 12 hours
+T_CORTE_MAX_SEG: float = 2 * 3600   # 2 hours
+
+# Maximum time gap allowed for semantic rescue (seconds)
+DELTA_MAX_RESCATE_SEG: float = 24 * 3600  # 24 hours
 
 # Context strategy: "centroide" (mean pooling) or "max_sim" (max individual similarity)
 ESTRATEGIA_CONTEXTO: str = "centroide"
@@ -301,8 +307,8 @@ def chunkear_conversacion(
 
     df["coef_hora_pico"] = coefs_inverted
 
-    # T_corte = mediana / coef_inverted, clamped to [T_CORTE_MIN, T_CORTE_MAX]
-    t_corte = mediana_delta_seg / coefs_inverted
+    # T_corte = T_CORTE_BASE_SEG / coef_inverted, clamped to [T_CORTE_MIN, T_CORTE_MAX]
+    t_corte = T_CORTE_BASE_SEG / coefs_inverted
     t_corte = np.clip(t_corte, T_CORTE_MIN_SEG, T_CORTE_MAX_SEG)
     df["t_corte_seg"] = t_corte
 
@@ -333,6 +339,14 @@ def chunkear_conversacion(
     candidate_indices = df.index[df["es_candidato_corte"]].tolist()
 
     for i in candidate_indices:
+        delta_val = float(df.loc[i, "delta_seg"])
+        if delta_val > DELTA_MAX_RESCATE_SEG:
+            # Exceeds maximum rescue window: confirmed cut due to excessive temporal gap
+            cortes[i] = True
+            inicio_bloque = i
+            motivo[i] = "corte_temporal_excesivo"
+            continue
+
         ini_ventana = max(inicio_bloque, i - VENTANA_CONTEXTO)
         sim = _similitud_contexto(embeddings, mask_centroide, ini_ventana, i)
         sim_coseno[i] = sim
